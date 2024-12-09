@@ -60,11 +60,11 @@ signal(SIGINT, handler)
 
 
 def main():
-    init = sl.InitParameters(camera_resolution=sl.RESOLUTION.HD720,
+    init = sl.InitParameters(camera_resolution=sl.RESOLUTION.HD1080,
                                  coordinate_units=sl.UNIT.METER,
                                  coordinate_system=sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP)
     parse_args(init)#pass init params
-    init.depth_mode = sl.DEPTH_MODE.PERFORMANCE
+    init.depth_mode = sl.DEPTH_MODE.ULTRA
     init.async_image_retrieval = False;  # This parameter can be used to record SVO in camera FPS even if the grab loop is running at a lower FPS (due to compute for ex.)
 
     status = cam.open(init)
