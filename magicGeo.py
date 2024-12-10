@@ -2,6 +2,17 @@ import pyzed.sl as sl
 import time
 import keyboard
 import sys
+import math
+
+# Function to calculate GPS-like coordinates
+def calculate_new_gps(lat, lon, dx, dy):
+    earth_radius = 6378137  # Earth radius in meters
+
+    new_lat = lat + (dy / earth_radius) * (180 / math.pi)
+    new_lon = lon + (dx / (earth_radius * math.cos(math.pi * lat / 180))) * (180 / math.pi)
+
+    return new_lat, new_lon
+
 
 # Initialize camera
 zed = sl.Camera()
@@ -39,13 +50,17 @@ if zed.enable_spatial_mapping(mapping_params) != sl.ERROR_CODE.SUCCESS:
     zed.close()
     exit(1)
 
-# Prepare runtime and data holders
+# Initialize runtime and data holders
 runtime_params = sl.RuntimeParameters()
 image = sl.Mat()
 depth = sl.Mat()
 pose = sl.Pose()
 mesh = sl.Mesh()
 sensors_data = sl.SensorsData()
+
+# Initial GPS coordinates (starting point)
+current_lat = 54.5742  # Example latitude (Teesside University area)
+current_lon = -1.2353  # Example longitude
 
 print("Recording started... Press 'q' to stop.")
 
@@ -66,16 +81,25 @@ try:
             imu_data = sensors_data.get_imu_data()
             acceleration = imu_data.get_linear_acceleration()
             angular_velocity = imu_data.get_angular_velocity()
-
+            magnetometer_data = sensors_data.get_magnetometer_data()
+            magnetic_field = magnetometer_data.get_magnetic_field_calibrated
             barometer_data = sensors_data.get_barometer_data()
             pressure = barometer_data.pressure
 
-            # Log position and orientation
+            # Calculate simulated GPS-like coordinates
+            new_lat, new_lon = calculate_new_gps(current_lat, current_lon, translation[0], translation[2])
+
+            # Log position, orientation, sensor, and geo data
             print(f"Position: x={translation[0]:.2f}, y={translation[1]:.2f}, z={translation[2]:.2f}")
             print(f"Rotation: {rotation}")
             print(f"Acceleration: {acceleration}")
             print(f"Angular Velocity: {angular_velocity}")
-            print(f"Pressure: {pressure:.2f} hPa\n")
+            print(f"Magnetic Field: {magnetic_field}")
+            print(f"Pressure: {pressure:.2f} hPa")
+            print(f"Simulated GPS: Lat={new_lat:.6f}, Lon={new_lon:.6f}\n")
+
+            # Update current GPS
+            current_lat, current_lon = new_lat, new_lon
 
             # Get spatial mapping state
             mapping_state = zed.get_spatial_mapping_state()
@@ -91,7 +115,7 @@ except KeyboardInterrupt:
 print("\nExtracting Mesh...")
 if zed.extract_whole_spatial_map(mesh) == sl.ERROR_CODE.SUCCESS:
     print("Filtering Mesh...")
-    mesh.filter(sl.MeshFilterParameters())  # Filter out unnecessary vertices
+    mesh.filter(sl.MeshFilterParameters())  # Filter out unwanted vertices
 
     print("Saving Mesh to 'mesh.obj'...")
     if mesh.save("mesh.obj") == sl.ERROR_CODE.SUCCESS:
